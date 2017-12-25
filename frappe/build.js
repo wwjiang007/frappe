@@ -144,7 +144,7 @@ function get_compiled_file(file, output_path, minify, force_compile) {
 		file_content = minify_js(file_content, file);
 	}
 
-	if (file.endsWith('.js') && !file.includes('/lib/') && output_type === 'js' && !file.endsWith('class.js')) {
+	if (minify && file.endsWith('.js') && !file.includes('/lib/') && output_type === 'js' && !file.endsWith('class.js')) {
 		file_content = babelify(file_content, file, minify);
 	}
 
@@ -154,11 +154,13 @@ function get_compiled_file(file, output_path, minify, force_compile) {
 
 function babelify(content, path, minify) {
 	let presets = ['env'];
+	var plugins = ['transform-object-rest-spread']
 	// Minification doesn't work when loading Frappe Desk
 	// Avoid for now, trace the error and come back.
 	try {
 		return babel.transform(content, {
 			presets: presets,
+			plugins: plugins,
 			comments: false
 		}).code;
 	} catch (e) {
@@ -283,15 +285,15 @@ function watch_less(ondirty) {
 }
 
 function watch_js(ondirty) {
-	const js_paths = app_paths.map(path => path_join(path, 'public', 'js'));
-
-	const to_watch = filter_valid_paths(js_paths);
-	chokidar.watch(to_watch).on('change', (filename, stats) => {
-		console.log(filename, 'dirty');
+	chokidar.watch([
+		path_join(apps_path, '**', '*.js'),
+		path_join(apps_path, '**', '*.html')
+	]).on('change', (filename) => {
 		// build the target js file for which this js/html file is input
 		for (const target in build_map) {
 			const sources = build_map[target];
 			if (sources.includes(filename)) {
+				console.log(filename, 'dirty');
 				pack(target, sources, null, filename);
 				ondirty && ondirty(target);
 				// break;
